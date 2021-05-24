@@ -35,7 +35,12 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
                 .action(preAuthAction())
                 .and().withExternal().source(PaymentState.NEW).target(PaymentState.PRE_AUTH).event(PaymentEvent.PRE_AUTH_APPROVED)
                 .and().withExternal().source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR)
-                .event(PaymentEvent.PRE_AUTH_DECLINED);
+                .event(PaymentEvent.PRE_AUTH_DECLINED)
+                .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.PRE_AUTH).event(PaymentEvent.AUTHORIZE)
+                .action(authAction())
+                .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.AUTH).event(PaymentEvent.AUTH_APPROVED)
+                .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.AUTH_ERROR)
+                .event(PaymentEvent.AUTH_DECLINED);
     }
 
     @Override
@@ -66,6 +71,26 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
             } else {
                 log.info("PreAuth Payment Declined...No Credit!!!");
                 context.getStateMachine().sendEvent(MessageBuilder.withPayload(PaymentEvent.PRE_AUTH_APPROVED).setHeader(
+                        PaymentServiceImpl.PAYMENT_ID_HEADER, context.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                                            .build());
+            }
+        };
+    }
+
+    public Action<PaymentState, PaymentEvent> authAction() {
+        return context -> {
+            log.info("Auth Action Called...");
+
+            // Randomly approve/decline the Auth payment
+            if (new Random().nextInt(10) < 8) {
+                log.info("Auth Payment Approved...");
+                context.getStateMachine().sendEvent(MessageBuilder.withPayload(PaymentEvent.AUTH_APPROVED).setHeader(
+                        PaymentServiceImpl.PAYMENT_ID_HEADER, context.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
+                                                            .build());
+
+            } else {
+                log.info("Auth Payment Declined...");
+                context.getStateMachine().sendEvent(MessageBuilder.withPayload(PaymentEvent.AUTH_DECLINED).setHeader(
                         PaymentServiceImpl.PAYMENT_ID_HEADER, context.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER))
                                                             .build());
             }

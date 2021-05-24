@@ -41,4 +41,15 @@ class PaymentServiceImplTest {
         log.info("STATE : " + stateMachine.getState().getId());
         log.info("PRE_AUTH : " + preAuthorizedPayment);
     }
+
+    @Transactional
+    @Test
+    public void preAuthApproved() {
+        Payment savedPayment = paymentService.newPayment(payment);
+        StateMachine<PaymentState, PaymentEvent> stateMachine = paymentService.preAuthApproved(savedPayment.getId());
+
+        Payment preAuthorizedPayment = paymentRepository.getById(payment.getId());
+        log.info("STATE : " + stateMachine.getState().getId());
+        log.info("PRE_AUTH : " + preAuthorizedPayment);
+    }
 }

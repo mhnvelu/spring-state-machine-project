@@ -2,10 +2,9 @@ package com.spring.microservices.payment.creditcard.statemachine.config;
 
 import com.spring.microservices.payment.creditcard.statemachine.domain.PaymentEvent;
 import com.spring.microservices.payment.creditcard.statemachine.domain.PaymentState;
-import com.spring.microservices.payment.creditcard.statemachine.services.PaymentServiceImpl;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.action.Action;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
 import org.springframework.statemachine.config.StateMachineConfigurerAdapter;
@@ -17,12 +16,22 @@ import org.springframework.statemachine.listener.StateMachineListenerAdapter;
 import org.springframework.statemachine.state.State;
 
 import java.util.EnumSet;
-import java.util.Random;
 
 @Configuration
 @EnableStateMachineFactory
 @Slf4j
+@RequiredArgsConstructor
 public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentState, PaymentEvent> {
+
+    // Spring autowires the component by matching the property name with class name.
+    private final Action<PaymentState, PaymentEvent> authAction;
+    private final Action<PaymentState, PaymentEvent> preAuthAction;
+    private final Guard<PaymentState, PaymentEvent> paymentIdGuard;
+    private final Action<PaymentState, PaymentEvent> authApprovedAction;
+    private final Action<PaymentState, PaymentEvent> authDeclinedAction;
+    private final Action<PaymentState, PaymentEvent> preAuthApprovedAction;
+    private final Action<PaymentState, PaymentEvent> preAuthDeclinedAction;
+
     @Override
     public void configure(StateMachineStateConfigurer<PaymentState, PaymentEvent> states) throws Exception {
         states.withStates().initial(PaymentState.NEW).states(EnumSet.allOf(PaymentState.class)).end(PaymentState.AUTH)
@@ -33,14 +42,16 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
     @Override
     public void configure(StateMachineTransitionConfigurer<PaymentState, PaymentEvent> transitions) throws Exception {
         transitions.withExternal().source(PaymentState.NEW).target(PaymentState.NEW).event(PaymentEvent.PRE_AUTHORIZE)
-                .action(preAuthAction()).guard(paymentIdGuard())
+                .action(preAuthAction).guard(paymentIdGuard)
                 .and().withExternal().source(PaymentState.NEW).target(PaymentState.PRE_AUTH).event(PaymentEvent.PRE_AUTH_APPROVED)
-                .and().withExternal().source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR)
+                .action(preAuthApprovedAction)
+                .and().withExternal().source(PaymentState.NEW).target(PaymentState.PRE_AUTH_ERROR).action(preAuthDeclinedAction)
                 .event(PaymentEvent.PRE_AUTH_DECLINED)
                 .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.PRE_AUTH).event(PaymentEvent.AUTHORIZE)
-                .action(authAction())
+                .action(authAction)
                 .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.AUTH).event(PaymentEvent.AUTH_APPROVED)
-                .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.AUTH_ERROR)
+                .action(authApprovedAction)
+                .and().withExternal().source(PaymentState.PRE_AUTH).target(PaymentState.AUTH_ERROR).action(authDeclinedAction)
                 .event(PaymentEvent.AUTH_DECLINED);
     }
 
@@ -57,7 +68,7 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
         config.withConfiguration().listener(adapter);
     }
 
-
+/*
     public Action<PaymentState, PaymentEvent> preAuthAction() {
         return context -> {
             log.info("Pre Auth Action Called...");
@@ -104,4 +115,5 @@ public class StateMachineConfig extends StateMachineConfigurerAdapter<PaymentSta
             return context.getMessageHeader(PaymentServiceImpl.PAYMENT_ID_HEADER) != null;
         };
     }
+    */
 }
